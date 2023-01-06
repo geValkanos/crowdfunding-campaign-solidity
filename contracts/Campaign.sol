@@ -2,9 +2,9 @@
 pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./CampaignInterface.sol";
 
-
-contract Campaign {
+contract Campaign is CampaignInterface {
     // The campaing's owner
     address public owner;
 
@@ -24,7 +24,7 @@ contract Campaign {
     event FundsSent(address indexed user, uint256 amount, bool isRefund);
 
     // Event for when the campaign is completed.
-    event Closed(uint256 goalAmount, uint256 totalGathered);
+    event Completed(uint256 goalAmount, uint256 totalGathered);
 
     constructor(uint256 _goal, address _tokenAddress) {
         goal = _goal;
@@ -32,38 +32,43 @@ contract Campaign {
         theToken = IERC20(_tokenAddress);
     }
 
-    function addFunds(uint256 _amount) public {
-        // Validate the request.
+    modifier goalIsNotCompleted() {
         require(goal > gatheredAmount, "The goal has already been achieved");
-        require(theToken.balanceOf(msg.sender) >= _amount, "Not enough theToken to contribute");
+        _;
+    }
+
+    function addFunds(address _from, uint256 _amount) external goalIsNotCompleted {
+        // Validate the request
+        require(
+            theToken.balanceOf(_from) >= _amount,
+            "Not enough theToken to contribute"
+        );
 
         // Transfer the tokens to the crowdfunding account.
-        theToken.transferFrom(msg.sender, address(this), _amount);
+        theToken.transferFrom(_from, address(this), _amount);
         gatheredAmount += _amount;
-        amounts[msg.sender] += _amount;
-        
+        amounts[_from] += _amount;
+
         // Trigger event for this funding.
-        emit FundsSent(msg.sender, _amount, false);
+        emit FundsSent(_from, _amount, false);
 
         // Close the campaign if the funds are gathered.
         if (gatheredAmount >= goal) {
-            emit Closed(goal, gatheredAmount);
+            emit Completed(goal, gatheredAmount);
         }
     }
 
-    function refund() public {
+    function refund(address _to) external goalIsNotCompleted {
         // Validate the request
-        require(goal > gatheredAmount, "The goal is completed, no refunds allowed");
-        require(amounts[msg.sender] != 0, "The user hasn't contribute any funds");
+        require(amounts[_to] != 0, "The user hasn't contribute any funds");
 
         // Transfer the tokens back to user.
-        uint256 amount = amounts[msg.sender];
-        amounts[msg.sender] = 0;
+        uint256 amount = amounts[_to];
+        amounts[_to] = 0;
         gatheredAmount -= amount;
-        theToken.transfer(msg.sender, amount);
+        theToken.transfer(_to, amount);
 
         // Trigger event for the refund.
-        emit FundsSent(msg.sender, amount, true);
+        emit FundsSent(_to, amount, true);
     }
-
 }

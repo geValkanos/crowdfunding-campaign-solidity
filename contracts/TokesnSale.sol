@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-interface IERC20 {
-    function transfer(address to, uint256 amount) external;
-
-    function decimals() external view returns (uint256);
-}
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract TokenSale {
     uint256 public tokenPriceInWei = 1 ether;
